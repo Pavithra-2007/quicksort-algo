@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickSelect — Median Finder</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4f5f8;
+  --surface:#ffffff;
+  --ink:#161a23;
+  --slate:#666c7d;
+  --slate-soft:#9499a8;
+  --border:#e3e5ec;
+  --border-soft:#edeef3;
+  --indigo:#4338ca;
+  --indigo-soft:#eeecfb;
+  --rose:#e11d48;
+  --rose-soft:#fde8ec;
+  --amber:#b45309;
+  --amber-soft:#fdf1de;
+  --teal:#0f766e;
+  --teal-soft:#e4f4f2;
+  --green:#15803d;
+  --green-soft:#e7f6ec;
+  --mono:'JetBrains Mono',monospace;
+  --head:'Space Grotesk',sans-serif;
+  --body:'Inter',sans-serif;
+  --shadow-sm:0 1px 2px rgba(20,22,35,0.04);
+  --shadow-md:0 4px 16px rgba(20,22,35,0.06);
+  --shadow-lg:0 12px 32px rgba(20,22,35,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);min-height:100vh}
+
+/* ── Backdrop: quiet graph-paper field, no glow blobs ── */
+.bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(67,56,202,0.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(67,56,202,0.05) 1px,transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,black 0%,transparent 70%);
+}
+
+.page-wrap{position:relative;z-index:1}
+
+/* ── Header ── */
+.app-header{
+  padding:1.1rem 0;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+  background:rgba(244,245,248,0.88);
+  backdrop-filter:blur(14px);
+}
+.logo-wrap{display:flex;align-items:center;gap:13px}
+.logo-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;flex-shrink:0;
+}
+.logo-icon svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}
+.logo-name{font-family:var(--head);font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+.logo-sub{font-size:11px;color:var(--slate-soft);font-family:var(--mono);letter-spacing:.08em;margin-top:1px}
+.header-badge{
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;font-weight:600;
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--slate);
+  padding:5px 12px;border-radius:20px;
+  display:inline-flex;align-items:center;gap:6px;
+  box-shadow:var(--shadow-sm);
+}
+.header-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--indigo)}
+
+/* ── Tabs ── */
+.tab-bar{
+  display:flex;gap:2px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:4px;
+  width:fit-content;
+  box-shadow:var(--shadow-sm);
+}
+.tab-btn{
+  font-family:var(--body);font-size:13.5px;font-weight:600;letter-spacing:.01em;
+  padding:8px 20px;border-radius:7px;border:none;
+  background:transparent;color:var(--slate);
+  cursor:pointer;transition:all .2s;
+}
+.tab-btn:hover{color:var(--ink);background:var(--border-soft)}
+.tab-btn.active{background:var(--ink);color:#fff}
+
+/* ── Card ── */
+.g-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:1.5rem;
+  box-shadow:var(--shadow-sm);
+  transition:box-shadow .25s,border-color .25s;
+}
+.g-card:hover{box-shadow:var(--shadow-md)}
+.card-lbl{
+  font-family:var(--head);font-size:11px;letter-spacing:.1em;font-weight:600;
+  color:var(--indigo);text-transform:uppercase;margin-bottom:1.1rem;
+  display:flex;align-items:center;gap:8px;
+}
+.card-lbl::after{content:'';flex:1;height:1px;background:var(--border-soft)}
+
+/* ── Input ── */
+.neon-input{
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:9px;
+  color:var(--ink);
+  font-family:var(--mono);font-size:13px;
+  padding:11px 16px;
+  width:100%;outline:none;
+  transition:all .2s;
+}
+.neon-input:focus{
+  border-color:var(--indigo);
+  box-shadow:0 0 0 3px var(--indigo-soft);
+}
+.neon-input::placeholder{color:var(--slate-soft)}
+
+.btn-glow{
+  background:var(--ink);
+  border:1.5px solid var(--ink);
+  border-radius:9px;
+  color:#fff;font-family:var(--body);font-size:13.5px;font-weight:600;
+  padding:10.5px 22px;cursor:pointer;
+  transition:all .18s;white-space:nowrap;
+}
+.btn-glow:hover{background:var(--indigo);border-color:var(--indigo);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn-glow:active{transform:translateY(0)}
+
+.btn-ghost2{
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:9px;
+  color:var(--slate);font-family:var(--body);font-size:13.5px;font-weight:600;
+  padding:10.5px 18px;cursor:pointer;
+  transition:all .18s;white-space:nowrap;
+}
+.btn-ghost2:hover{color:var(--ink);border-color:var(--ink);background:var(--border-soft)}
+.btn-ghost2:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Array ── */
+.arr-display{
+  display:flex;gap:14px;flex-wrap:wrap;
+  justify-content:center;align-items:flex-start;
+  min-height:110px;padding:1.25rem 0 0.75rem;
+}
+.cell{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  animation:cellIn .3s cubic-bezier(.34,1.56,.64,1) both;
+  position:relative;
+}
+@keyframes cellIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* callout — signature element: technical-annotation tag above active cells */
+.callout{
+  font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.07em;
+  padding:2px 7px;border-radius:4px;white-space:nowrap;
+  position:relative;margin-bottom:2px;
+}
+.callout::after{content:'';position:absolute;left:50%;bottom:-7px;width:1.5px;height:7px;background:currentColor;opacity:.6;transform:translateX(-50%)}
+.callout.co-pivot{background:var(--amber-soft);color:var(--amber)}
+.callout.co-found{background:var(--green-soft);color:var(--green)}
+
+.cbox{
+  width:54px;height:54px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:16px;font-weight:600;
+  border:1.5px solid var(--border);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  position:relative;cursor:default;
+  background:var(--surface);color:var(--ink);
+}
+
+.cbox.normal{background:var(--surface);border-color:var(--border);color:var(--ink)}
+.cbox.pivot{
+  background:var(--amber-soft);border-color:var(--amber);color:var(--amber);
+  box-shadow:0 2px 10px rgba(180,83,9,0.18);
+}
+.cbox.left{
+  background:var(--indigo-soft);border-color:var(--indigo);color:var(--indigo);
+}
+.cbox.right{
+  background:var(--rose-soft);border-color:var(--rose);color:var(--rose);
+}
+.cbox.target{
+  background:var(--teal-soft);border-color:var(--teal);color:var(--teal);
+  box-shadow:0 0 0 3px rgba(15,118,110,0.08);
+}
+.cbox.found{
+  background:var(--green-soft);border-color:var(--green);color:var(--green);
+  box-shadow:0 4px 18px rgba(21,128,61,0.25);
+  transform:scale(1.12) translateY(-3px);
+}
+.cbox.dead{opacity:.32;background:var(--paper);filter:saturate(.4)}
+.cidx{font-family:var(--mono);font-size:10px;color:var(--slate-soft)}
+
+/* ── Legend ── */
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;padding-top:.75rem;border-top:1px solid var(--border-soft);margin-top:.5rem}
+.leg{display:flex;align-items:center;gap:6px;color:var(--slate);font-weight:500}
+.ldot{width:10px;height:10px;border-radius:3px;border:1.5px solid}
+
+/* ── Step box ── */
+.step-box{
+  border-radius:11px;padding:1.1rem 1.3rem;
+  border-left:3px solid var(--indigo);
+  background:var(--indigo-soft);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+}
+.step-title{font-family:var(--head);font-size:13.5px;font-weight:700;letter-spacing:-.005em;color:var(--ink);margin-bottom:5px}
+.step-desc{font-size:13.5px;font-weight:400;color:var(--slate);line-height:1.6}
+
+/* ── Metrics ── */
+.met-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;padding:1rem 1.15rem;
+  position:relative;overflow:hidden;
+  transition:all .2s;
+  box-shadow:var(--shadow-sm);
+}
+.met-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+  background:var(--indigo);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .4s;
+}
+.met-card:hover::after{transform:scaleX(1)}
+.met-card:hover{box-shadow:var(--shadow-md)}
+.met-lbl{font-family:var(--head);font-size:10px;letter-spacing:.09em;font-weight:600;color:var(--slate-soft);margin-bottom:6px;text-transform:uppercase}
+.met-val{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--ink);transition:all .2s}
+.met-val.bump{animation:bump .25s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bump{0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)}}
+#m-ans{color:var(--green)}
+
+/* ── Progress ── */
+.prog-wrap{flex:1;height:5px;background:var(--border-soft);border-radius:3px;overflow:hidden;min-width:60px}
+.prog-bar{height:100%;background:var(--indigo);border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+
+/* ── Control btns ── */
+.ctrl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ── Pseudocode ── */
+.pseudo-block{
+  background:#1c1f2b;
+  border:1px solid var(--border);
+  border-radius:12px;padding:1.3rem 1.4rem;
+  font-family:var(--mono);font-size:12.5px;line-height:1.95;
+  color:#e7e9f3;overflow-x:auto;
+}
+.kw{color:#a8b8ff}.fn{color:#7fd9cf}.cm{color:#7b8094;font-style:italic}.nm{color:#f2c265}
+
+/* ── Complexity rows ── */
+.cmp-row{
+  display:flex;border-radius:9px;overflow:hidden;
+  border:1px solid var(--border);margin-bottom:8px;font-size:13px;
+  transition:border-color .2s;
+}
+.cmp-row:hover{border-color:var(--slate-soft)}
+.cmp-label{background:var(--paper);padding:10px 14px;color:var(--slate);flex:1.5;border-right:1px solid var(--border);font-weight:500}
+.cmp-v{padding:10px 14px;font-family:var(--mono);font-weight:700;flex:1;border-right:1px solid var(--border);background:var(--surface)}
+.cmp-note{padding:10px 14px;flex:2;color:var(--slate-soft);font-size:12px;background:var(--surface)}
+
+.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10px;font-family:var(--mono);margin-left:6px;font-weight:700}
+.pill-g{background:var(--green-soft);color:var(--green);border:1px solid rgba(21,128,61,0.25)}
+.pill-a{background:var(--amber-soft);color:var(--amber);border:1px solid rgba(180,83,9,0.25)}
+.pill-r{background:var(--rose-soft);color:var(--rose);border:1px solid rgba(225,29,72,0.25)}
+
+/* ── Diff cards ── */
+.diff-card{border-radius:12px;padding:1.25rem;border:1px solid var(--border);background:var(--surface);transition:all .2s}
+.diff-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.diff-title{font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:-.005em;margin-bottom:8px}
+.diff-body{font-size:13px;line-height:1.7;color:var(--slate)}
+
+/* ── Recurrence box ── */
+.recur-box{background:#1c1f2b;border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-family:var(--mono);font-size:13px;margin-bottom:12px;color:#e7e9f3}
+
+/* ── Section label ── */
+.sec-lbl{
+  font-family:var(--head);font-size:10px;letter-spacing:.1em;font-weight:600;
+  color:var(--indigo);text-transform:uppercase;margin-bottom:.75rem;
+}
+
+/* ── Responsive ── */
+@media(max-width:576px){
+  .cbox{width:44px;height:44px;font-size:13px;border-radius:8px}
+  .cmp-note{display:none}
+  .tab-btn{padding:7px 14px;font-size:12.5px}
+}
+
+/* ── Fade in sections ── */
+.fade-in{animation:fadeIn .35s ease both}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <header class="app-header">
+    <div class="container">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="logo-wrap">
+          <div class="logo-icon">
+            <svg viewBox="0 0 22 22"><polyline points="3,11 11,3 19,11"/><polyline points="3,11 11,19 19,11"/><line x1="11" y1="3" x2="11" y2="19"/></svg>
+          </div>
+          <div>
+            <div class="logo-name">QuickSelect</div>
+            <div class="logo-sub">MEDIAN FINDER</div>
+          </div>
+        </div>
+        <span class="header-badge">DECREASE &amp; CONQUER</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container py-4">
+
+    <!-- Tabs -->
+    <div class="mb-4">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('animate',this)">Animation</button>
+        <button class="tab-btn" onclick="switchTab('pseudo',this)">Pseudocode</button>
+        <button class="tab-btn" onclick="switchTab('analysis',this)">Complexity</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ANIMATE ═══════════════ -->
+    <div id="tab-animate" class="fade-in">
+
+      <!-- Input -->
+      <div class="g-card mb-3">
+        <div class="card-lbl">Input array</div>
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+          <input id="arr-in" class="neon-input flex-grow-1" placeholder="e.g. 3, 1, 9, 5, 7, 2, 8" value="3, 1, 9, 5, 7, 2, 8">
+          <button class="btn-glow" onclick="initFromInput()">Run ▶</button>
+          <button class="btn-ghost2" onclick="doRandom()">Random</button>
+        </div>
+
+        <div class="arr-display" id="arr-disp"></div>
+
+        <div class="legend">
+          <div class="leg"><div class="ldot" style="background:var(--amber-soft);border-color:var(--amber)"></div>Pivot</div>
+          <div class="leg"><div class="ldot" style="background:var(--indigo-soft);border-color:var(--indigo)"></div>Left (≤)</div>
+          <div class="leg"><div class="ldot" style="background:var(--rose-soft);border-color:var(--rose)"></div>Right (&gt;)</div>
+          <div class="leg"><div class="ldot" style="background:var(--teal-soft);border-color:var(--teal)"></div>Target k</div>
+          <div class="leg"><div class="ldot" style="background:var(--green-soft);border-color:var(--green)"></div>Median</div>
+          <div class="leg"><div class="ldot" style="background:var(--paper);border-color:var(--border)"></div>Discarded</div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="met-card">
+            <div class="met-lbl">Comparisons</div>
+            <div class="met-val" id="m-cmp">0</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="met-card">
+            <div class="met-lbl">Partitions</div>
+            <div class="met-val" id="m-part">0</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="met-card">
+            <div class="met-lbl">Target k</div>
+            <div class="met-val" id="m-k">—</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="met-card">
+            <div class="met-lbl">Median</div>
+            <div class="met-val" id="m-ans">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step + controls -->
+      <div class="g-card mb-3">
+        <div class="card-lbl">Step trace</div>
+        <div class="step-box mb-3" id="step-box">
+          <div class="step-title" id="step-title">Ready</div>
+          <div class="step-desc" id="step-desc">Enter an array and press Run, then use the controls to walk through QuickSelect.</div>
+        </div>
+        <div class="ctrl-row">
+          <button class="btn-ghost2" id="btn-prev" onclick="stepBack()" disabled>← Prev</button>
+          <button class="btn-glow" id="btn-next" onclick="stepFwd()">Next →</button>
+          <button class="btn-ghost2" onclick="resetSteps()">Reset</button>
+          <button class="btn-ghost2" id="btn-auto" onclick="autoPlay()">Auto Play</button>
+          <div class="prog-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--slate-soft)" id="step-cnt">0 / 0</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════ PSEUDOCODE ═══════════════ -->
+    <div id="tab-pseudo" style="display:none" class="fade-in">
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Recursive implementation</div>
+        <div class="pseudo-block"><span class="cm">// Find k-th smallest in arr[lo..hi]</span>
+<span class="kw">function</span> <span class="fn">quickSelectRec</span>(arr, lo, hi, k):
+  <span class="kw">if</span> lo == hi:
+    <span class="kw">return</span> arr[lo]               <span class="cm">// base case — single element</span>
+
+  p = <span class="fn">partition</span>(arr, lo, hi)
+
+  <span class="kw">if</span>   k == p : <span class="kw">return</span> arr[k]  <span class="cm">// pivot IS the answer</span>
+  <span class="kw">elif</span> k &lt;  p : <span class="kw">return</span> <span class="fn">quickSelectRec</span>(arr, lo,   p-<span class="nm">1</span>, k)
+  <span class="kw">else</span>         : <span class="kw">return</span> <span class="fn">quickSelectRec</span>(arr, p+<span class="nm">1</span>, hi,   k)
+
+<span class="fn">medianRec</span>(arr):
+  k = ⌊arr.length / <span class="nm">2</span>⌋
+  <span class="kw">return</span> <span class="fn">quickSelectRec</span>(arr, <span class="nm">0</span>, arr.length-<span class="nm">1</span>, k)</div>
+      </div>
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Iterative (non-recursive) implementation</div>
+        <div class="pseudo-block"><span class="cm">// Same result — while loop replaces the call stack</span>
+<span class="kw">function</span> <span class="fn">quickSelectIter</span>(arr, k):
+  lo = <span class="nm">0</span>
+  hi = arr.length - <span class="nm">1</span>
+
+  <span class="kw">while</span> lo &lt; hi:
+    p = <span class="fn">partition</span>(arr, lo, hi)
+    <span class="kw">if</span>   p == k : <span class="kw">break</span>
+    <span class="kw">elif</span> p &lt;  k : lo = p + <span class="nm">1</span>
+    <span class="kw">else</span>         : hi = p - <span class="nm">1</span>
+
+  <span class="kw">return</span> arr[k]
+
+<span class="cm">// Lomuto partition — pivot = last element</span>
+<span class="kw">function</span> <span class="fn">partition</span>(arr, lo, hi):
+  pivot = arr[hi];  i = lo - <span class="nm">1</span>
+  <span class="kw">for</span> j = lo <span class="kw">to</span> hi-<span class="nm">1</span>:
+    <span class="kw">if</span> arr[j] &lt;= pivot:
+      i++
+      <span class="fn">swap</span>(arr, i, j)
+  <span class="fn">swap</span>(arr, i+<span class="nm">1</span>, hi)
+  <span class="kw">return</span> i + <span class="nm">1</span></div>
+      </div>
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Comparison</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="diff-card" style="border-color:rgba(67,56,202,0.25)">
+              <div class="diff-title" style="color:var(--indigo)">Recursive</div>
+              <div class="diff-body">Calls itself with a smaller subproblem. Elegant and readable. Uses O(log n) call-stack depth on average; O(n) worst case — potential stack overflow on large sorted inputs.</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="diff-card" style="border-color:rgba(15,118,110,0.25)">
+              <div class="diff-title" style="color:var(--teal)">Iterative</div>
+              <div class="diff-body">Updates lo/hi pointers in a loop. Preferred in production — O(1) auxiliary space, no stack overflow risk on adversarial input. Both versions do identical comparisons.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════ COMPLEXITY ═══════════════ -->
+    <div id="tab-analysis" style="display:none" class="fade-in">
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Time complexity</div>
+        <div class="cmp-row"><div class="cmp-label">Best case</div><div class="cmp-v" style="color:var(--green)">O(n)<span class="pill pill-g">optimal</span></div><div class="cmp-note">Pivot lands exactly on k every split</div></div>
+        <div class="cmp-row"><div class="cmp-label">Average case</div><div class="cmp-v" style="color:var(--amber)">O(n)<span class="pill pill-a">typical</span></div><div class="cmp-note">Random pivot ≈ halves range each step</div></div>
+        <div class="cmp-row"><div class="cmp-label">Worst case</div><div class="cmp-v" style="color:var(--rose)">O(n²)<span class="pill pill-r">rare</span></div><div class="cmp-note">Pivot always min/max (sorted input)</div></div>
+        <div class="cmp-row"><div class="cmp-label">Median-of-medians</div><div class="cmp-v" style="color:var(--green)">O(n)<span class="pill pill-g">guaranteed</span></div><div class="cmp-note">Worst-case linear via smarter pivot</div></div>
+      </div>
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Space complexity</div>
+        <div class="cmp-row"><div class="cmp-label">Iterative</div><div class="cmp-v" style="color:var(--green)">O(1)</div><div class="cmp-note">Only lo, hi, pivot variables</div></div>
+        <div class="cmp-row"><div class="cmp-label">Recursive (average)</div><div class="cmp-v" style="color:var(--amber)">O(log n)</div><div class="cmp-note">Call stack depth ≈ log n</div></div>
+        <div class="cmp-row"><div class="cmp-label">Recursive (worst)</div><div class="cmp-v" style="color:var(--rose)">O(n)</div><div class="cmp-note">Stack overflow risk on adversarial input</div></div>
+      </div>
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">vs alternatives</div>
+        <div class="cmp-row"><div class="cmp-label">Sort then index</div><div class="cmp-v" style="color:var(--rose)">O(n log n)</div><div class="cmp-note">Wastes work sorting the irrelevant half</div></div>
+        <div class="cmp-row"><div class="cmp-label">Min-heap (k-th)</div><div class="cmp-v" style="color:var(--amber)">O(n log k)</div><div class="cmp-note">Better than sort but heap overhead remains</div></div>
+        <div class="cmp-row"><div class="cmp-label">QuickSelect (avg)</div><div class="cmp-v" style="color:var(--green)">O(n)</div><div class="cmp-note">Discards irrelevant partition entirely</div></div>
+      </div>
+
+      <div class="g-card mb-3">
+        <div class="card-lbl">Recurrence intuition</div>
+        <div style="font-size:13px;color:var(--slate);line-height:1.85">
+          Each call partitions O(n) elements and recurses into only one half:<br><br>
+          <div class="recur-box">
+            <span style="color:#7fd9cf">T(n)</span> = <span style="color:#f2c265">T(n/2)</span> + <span style="color:#a8b8ff">O(n)</span>  →  <span style="color:#8fe3a8">O(n)</span>  <span style="color:#7b8094">(Master theorem, case 3)</span>
+          </div>
+          Compare with merge sort: <span style="font-family:var(--mono);color:var(--indigo)">T(n) = 2·T(n/2) + O(n) → O(n log n)</span><br>
+          QuickSelect recurses into <em>one</em> branch, not both — that's the entire advantage.
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── State ──
+let arr=[], steps=[], idx=0, autoTimer=null;
+
+// ── Tab switch ──
+function switchTab(name, el){
+  ['animate','pseudo','analysis'].forEach(t=>{
+    const p = document.getElementById('tab-'+t);
+    p.style.display = t===name ? '' : 'none';
+    if(t===name){p.classList.remove('fade-in');void p.offsetWidth;p.classList.add('fade-in');}
+  });
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Random ──
+function doRandom(){
+  const n=7+Math.floor(Math.random()*5);
+  const s=new Set();
+  while(s.size<n) s.add(1+Math.floor(Math.random()*30));
+  document.getElementById('arr-in').value=[...s].join(', ');
+  initFromInput();
+}
+
+// ── Init ──
+function initFromInput(){
+  const raw=document.getElementById('arr-in').value;
+  const parsed=raw.split(/[,\s]+/).map(Number).filter(x=>!isNaN(x));
+  if(parsed.length<3){alert('Please enter at least 3 numbers.');return;}
+  arr=[...parsed];
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-auto').textContent='Auto Play';}
+  steps=buildSteps([...arr]);
+  idx=0;
+  render();
+}
+
+// ── Build steps ──
+function buildSteps(a){
+  const stps=[];
+  let cmps=0,parts=0;
+  const n=a.length, k=Math.floor(n/2);
+  stps.push({arr:[...a],title:'Initial array',desc:`${n} elements. Median index k = ${k} (0-based). Finding the ${ordinal(k+1)} smallest value using QuickSelect.`,pivot:-1,lo:0,hi:n-1,k,found:-1,cmps,parts,accent:'indigo'});
+
+  function partition(a,lo,hi){
+    const pv=a[hi];let i=lo-1;
+    for(let j=lo;j<hi;j++){cmps++;if(a[j]<=pv){i++;[a[i],a[j]]=[a[j],a[i]];}}
+    [a[i+1],a[hi]]=[a[hi],a[i+1]];parts++;return i+1;
+  }
+  function qs(a,lo,hi,k){
+    if(lo>hi)return;
+    stps.push({arr:[...a],title:`Partition [${lo}..${hi}]`,desc:`Pivot = ${a[hi]} (at index ${hi}). Scanning — move elements ≤ pivot to the left zone, larger to the right.`,pivot:hi,lo,hi,k,found:-1,cmps,parts,accent:'amber'});
+    const p=partition(a,lo,hi);
+    stps.push({arr:[...a],title:`Pivot settled at index ${p}`,desc:`${a[p]} is now at its final sorted position. Left ≤ ${a[p]}, right > ${a[p]}. Target k = ${k}.`,pivot:p,lo,hi,k,found:-1,cmps,parts,accent:'amber'});
+    if(p===k){
+      stps.push({arr:[...a],title:'Median found!',desc:`Pivot index ${p} equals k = ${k}. Value ${a[p]} is the median. No further work needed — QuickSelect stops here.`,pivot:-1,lo:p,hi:p,k,found:p,cmps,parts,accent:'green'});
+    } else if(k<p){
+      stps.push({arr:[...a],title:`Recurse left [${lo}..${p-1}]`,desc:`k=${k} < pivot index ${p}. Right partition is irrelevant — discard it entirely. Search only [${lo}..${p-1}].`,pivot:-1,lo,hi:p-1,k,found:-1,cmps,parts,accent:'indigo'});
+      qs(a,lo,p-1,k);
+    } else {
+      stps.push({arr:[...a],title:`Recurse right [${p+1}..${hi}]`,desc:`k=${k} > pivot index ${p}. Left partition is irrelevant — discard it entirely. Search only [${p+1}..${hi}].`,pivot:-1,lo:p+1,hi,k,found:-1,cmps,parts,accent:'indigo'});
+      qs(a,p+1,hi,k);
+    }
+  }
+  qs(a,0,n-1,k);
+  return stps;
+}
+
+function ordinal(n){return n+(['st','nd','rd'][n-1]||'th');}
+
+// ── Accent styles ──
+const accents={
+  indigo:{bg:'var(--indigo-soft)',border:'var(--indigo)'},
+  amber: {bg:'var(--amber-soft)', border:'var(--amber)'},
+  green: {bg:'var(--green-soft)', border:'var(--green)'},
+};
+
+let prevFound=-1;
+
+// ── Render ──
+function render(){
+  if(!steps.length)return;
+  const s=steps[idx];
+
+  // Array
+  const disp=document.getElementById('arr-disp');
+  disp.innerHTML='';
+  s.arr.forEach((v,i)=>{
+    let cls='normal';
+    if(s.found===i)             cls='found';
+    else if(i===s.pivot)        cls='pivot';
+    else if(i<s.lo||i>s.hi)    cls='dead';
+    else if(s.pivot>=0&&i<s.pivot) cls='left';
+    else if(s.pivot>=0&&i>s.pivot) cls='right';
+    else if(i===s.k)            cls='target';
+
+    let callout='';
+    if(i===s.pivot)      callout='<div class="callout co-pivot">PIVOT</div>';
+    else if(s.found===i) callout='<div class="callout co-found">MEDIAN</div>';
+
+    const c=document.createElement('div');
+    c.className='cell';
+    c.style.animationDelay=`${i*30}ms`;
+    c.innerHTML=`${callout}<div class="cbox ${cls}" id="cell-${i}">${v}</div><div class="cidx">[${i}]</div>`;
+    disp.appendChild(c);
+  });
+
+  // Step box
+  const sb=document.getElementById('step-box');
+  const ac=accents[s.accent]||accents.indigo;
+  sb.style.background=ac.bg;
+  sb.style.borderLeftColor=ac.border;
+  document.getElementById('step-title').textContent=s.title;
+  document.getElementById('step-desc').textContent=s.desc;
+
+  // Metrics with bump
+  function setMet(id,val){
+    const el=document.getElementById(id);
+    if(el.textContent!==String(val)){
+      el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
+      el.textContent=val;
+    }
+  }
+  setMet('m-cmp', s.cmps);
+  setMet('m-part',s.parts);
+  setMet('m-k',   s.k);
+  document.getElementById('m-ans').textContent = s.found>=0 ? s.arr[s.found] : '—';
+
+  // Progress
+  const pct=steps.length>1?Math.round(idx/(steps.length-1)*100):0;
+  document.getElementById('prog-bar').style.width=pct+'%';
+  document.getElementById('step-cnt').textContent=`${idx+1} / ${steps.length}`;
+
+  document.getElementById('btn-prev').disabled=idx===0;
+  document.getElementById('btn-next').disabled=idx===steps.length-1;
+}
+
+function stepFwd() { if(idx<steps.length-1){idx++;render();} }
+function stepBack(){ if(idx>0){idx--;render();} }
+
+function resetSteps(){
+  idx=0;
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-auto').textContent='Auto Play';}
+  render();
+}
+
+function autoPlay(){
+  if(autoTimer){
+    clearInterval(autoTimer);autoTimer=null;
+    document.getElementById('btn-auto').textContent='Auto Play';
+    return;
+  }
+  document.getElementById('btn-auto').textContent='Pause';
+  autoTimer=setInterval(()=>{
+    if(idx>=steps.length-1){
+      clearInterval(autoTimer);autoTimer=null;
+      document.getElementById('btn-auto').textContent='Auto Play';
+      return;
+    }
+    idx++;render();
+  },850);
+}
+
+// Start
+initFromInput();
+</script>
+</body>
+</html>
